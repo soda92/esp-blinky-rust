@@ -9,7 +9,8 @@
 
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
-
+// 1. Add GPIO imports
+use esp_hal::gpio::{ Level, Output, OutputConfig}; // <--- ADD THIS
 use esp_radio::ble::controller::BleConnector;
 use bt_hci::controller::ExternalController;
 use trouble_host::prelude::*;
@@ -20,7 +21,8 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    rprintln!("PANIC: {:?}", info);
     loop {}
 }
 
@@ -56,6 +58,9 @@ async fn main(spawner: Spawner) -> ! {
     esp_rtos::start(timg0.timer0, sw_interrupt.software_interrupt0);
 
     rprintln!("Embassy initialized!");
+    // 2. Setup GPIO 8 (Blue LED)
+    // We do this before the radio stuff just to be safe, though order here usually doesn't matter
+    let mut led = Output::new(peripherals.GPIO8, Level::High, OutputConfig::default());
 
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
     let (mut _wifi_controller, _interfaces) =
@@ -73,7 +78,8 @@ async fn main(spawner: Spawner) -> ! {
 
     loop {
         rprintln!("Hello world!");
-        Timer::after(Duration::from_secs(1)).await;
+        led.toggle();                                    // <--- ADD THIS
+        Timer::after(Duration::from_millis(500)).await;  // Changed to 500ms for faster blink
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v~1.0/examples
