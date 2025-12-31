@@ -10,9 +10,9 @@
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
 // 1. Add GPIO imports
-use esp_hal::gpio::{ Level, Output, OutputConfig}; // <--- ADD THIS
-use esp_radio::ble::controller::BleConnector;
 use bt_hci::controller::ExternalController;
+use esp_hal::gpio::{Level, Output, OutputConfig}; // <--- ADD THIS
+use esp_radio::ble::controller::BleConnector;
 use trouble_host::prelude::*;
 
 use rtt_target::rprintln;
@@ -64,15 +64,22 @@ async fn main(spawner: Spawner) -> ! {
     let mut led = Output::new(peripherals.GPIO8, Level::High, OutputConfig::default());
 
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
-    let (mut wifi_controller, interfaces) =
-        esp_radio::wifi::new(&radio_init, peripherals.WIFI, esp_radio::wifi::Config::default())
-            .expect("Failed to initialize Wi-Fi controller");
+    let (mut wifi_controller, interfaces) = esp_radio::wifi::new(
+        &radio_init,
+        peripherals.WIFI,
+        esp_radio::wifi::Config::default(),
+    )
+    .expect("Failed to initialize Wi-Fi controller");
 
     // We need to take the station interface to ensure the controller knows we are in STA mode
     let _sta = interfaces.sta;
-    
+
     // Set the mode to Station (Client)
-    wifi_controller.set_config(&esp_radio::wifi::ModeConfig::Client(esp_radio::wifi::ClientConfig::default())).unwrap();
+    wifi_controller
+        .set_config(&esp_radio::wifi::ModeConfig::Client(
+            esp_radio::wifi::ClientConfig::default(),
+        ))
+        .unwrap();
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
     let transport = BleConnector::new(&radio_init, peripherals.BT, Default::default()).unwrap();
     let ble_controller = ExternalController::<_, 1>::new(transport);
@@ -94,7 +101,10 @@ async fn main(spawner: Spawner) -> ! {
 
         // CHANGE 3: The Scan Command
         // scan_n::<10> means "find up to 10 networks"
-        let m = wifi_controller.scan_with_config_async(ScanConfig::default()).await.unwrap();
+        let m = wifi_controller
+            .scan_with_config_async(ScanConfig::default())
+            .await
+            .unwrap();
 
         for ap in m {
             rprintln!("Found: {:?} | RSSI: {}", ap.ssid, ap.signal_strength);
