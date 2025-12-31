@@ -25,6 +25,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     rprintln!("PANIC: {:?}", info);
     loop {}
 }
+use esp_radio::wifi::ScanConfig;
 
 extern crate alloc;
 
@@ -63,9 +64,15 @@ async fn main(spawner: Spawner) -> ! {
     let mut led = Output::new(peripherals.GPIO8, Level::High, OutputConfig::default());
 
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
-    let (mut _wifi_controller, _interfaces) =
-        esp_radio::wifi::new(&radio_init, peripherals.WIFI, Default::default())
+    let (mut wifi_controller, interfaces) =
+        esp_radio::wifi::new(&radio_init, peripherals.WIFI, esp_radio::wifi::Config::default())
             .expect("Failed to initialize Wi-Fi controller");
+
+    // We need to take the station interface to ensure the controller knows we are in STA mode
+    let _sta = interfaces.sta;
+    
+    // Set the mode to Station (Client)
+    wifi_controller.set_config(&esp_radio::wifi::ModeConfig::Client(esp_radio::wifi::ClientConfig::default())).unwrap();
     // find more examples https://github.com/embassy-rs/trouble/tree/main/examples/esp32
     let transport = BleConnector::new(&radio_init, peripherals.BT, Default::default()).unwrap();
     let ble_controller = ExternalController::<_, 1>::new(transport);
@@ -76,10 +83,25 @@ async fn main(spawner: Spawner) -> ! {
     // TODO: Spawn some tasks
     let _ = spawner;
 
+    // CHANGE 2: Start the WiFi controller!
+    // You must turn it on before you can scan.
+    rprintln!("Starting WiFi...");
+    wifi_controller.start_async().await.unwrap();
+
     loop {
-        rprintln!("Hello world!");
-        led.toggle();                                    // <--- ADD THIS
-        Timer::after(Duration::from_millis(500)).await;  // Changed to 500ms for faster blink
+        rprintln!("Scanning...");
+        led.set_low(); // Turn LED ON while scanning
+
+        // CHANGE 3: The Scan Command
+        // scan_n::<10> means "find up to 10 networks"
+        let m = wifi_controller.scan_with_config_async(ScanConfig::default()).await.unwrap();
+
+        for ap in m {
+            rprintln!("Found: {:?} | RSSI: {}", ap.ssid, ap.signal_strength);
+        }
+
+        led.set_high(); // Turn LED OFF
+        Timer::after(Duration::from_secs(5)).await;
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v~1.0/examples
