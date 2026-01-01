@@ -1,11 +1,13 @@
 use serde::{Serialize, Deserialize};
 use heapless::String;
-use postcard;
 use sequential_storage::map::{MapConfig, MapStorage};
 use sequential_storage::cache::NoCache;
 use esp_storage::FlashStorage;
 use esp_hal::peripherals::FLASH;
 use embassy_embedded_hal::adapter::BlockingAsync;
+
+// Include generated secrets
+include!(concat!(env!("OUT_DIR"), "/secrets.rs"));
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct AppConfig {
@@ -19,11 +21,11 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            ssid: String::try_from("Guest").unwrap(),
-            password: String::try_from("Guest1234").unwrap(),
-            mqtt_host: String::try_from("192.168.1.100").unwrap(),
-            mqtt_port: 1883,
-            device_id: String::try_from("esp32-sensor").unwrap(),
+            ssid: String::try_from(DEFAULT_SSID).unwrap_or(String::try_from("Guest").unwrap()),
+            password: String::try_from(DEFAULT_PASSWORD).unwrap_or(String::new()),
+            mqtt_host: String::try_from(DEFAULT_MQTT_HOST).unwrap_or(String::try_from("127.0.0.1").unwrap()),
+            mqtt_port: DEFAULT_MQTT_PORT,
+            device_id: String::try_from(DEFAULT_DEVICE_ID).unwrap_or(String::try_from("esp32").unwrap()),
         }
     }
 }

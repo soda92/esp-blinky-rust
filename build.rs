@@ -1,4 +1,47 @@
+use std::env;
+use std::fs;
+use std::path::Path;
+
 fn main() {
+    // Generate secrets from config.json
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("secrets.rs");
+
+    let config_path = Path::new("config.json");
+    if config_path.exists() {
+        println!("cargo:rerun-if-changed=config.json");
+        let content = fs::read_to_string(config_path).unwrap();
+        let config: serde_json::Value = serde_json::from_str(&content).expect("Failed to parse config.json");
+
+        let ssid = config.get("ssid").and_then(|v| v.as_str()).unwrap_or("Guest");
+        let password = config.get("password").and_then(|v| v.as_str()).unwrap_or("");
+        let mqtt_host = config.get("mqtt_host").and_then(|v| v.as_str()).unwrap_or("127.0.0.1");
+        let mqtt_port = config.get("mqtt_port").and_then(|v| v.as_u64()).unwrap_or(1883);
+        let device_id = config.get("device_id").and_then(|v| v.as_str()).unwrap_or("esp32");
+
+        let code = format!(
+            r#"
+            pub const DEFAULT_SSID: &str = "{}";
+            pub const DEFAULT_PASSWORD: &str = "{}";
+            pub const DEFAULT_MQTT_HOST: &str = "{}";
+            pub const DEFAULT_MQTT_PORT: u16 = {};
+            pub const DEFAULT_DEVICE_ID: &str = "{}";
+            "#,
+            ssid, password, mqtt_host, mqtt_port, device_id
+        );
+        fs::write(&dest_path, code).unwrap();
+    } else {
+        println!("cargo:warning=config.json not found, using defaults");
+        let code = r#"
+            pub const DEFAULT_SSID: &str = "Guest";
+            pub const DEFAULT_PASSWORD: &str = "";
+            pub const DEFAULT_MQTT_HOST: &str = "127.0.0.1";
+            pub const DEFAULT_MQTT_PORT: u16 = 1883;
+            pub const DEFAULT_DEVICE_ID: &str = "esp32";
+        "#;
+        fs::write(&dest_path, code).unwrap();
+    }
+
     linker_be_nice();
     // make sure linkall.x is the last linker script (otherwise might cause problems with flip-link)
     println!("cargo:rustc-link-arg=-Tlinkall.x");

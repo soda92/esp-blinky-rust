@@ -81,3 +81,7 @@ incremental      = false
 lto              = 'fat'
 opt-level        = 's'
 overflow-checks  = false
+
+[build-dependencies]
+serde = "1.0.228"
+serde_json = "1.0.148"
