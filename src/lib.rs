@@ -12,7 +12,7 @@ use esp_radio::ble::controller::BleConnector;
 use bt_hci::controller::ExternalController;
 use trouble_host::prelude::*;
 use rtt_target::rprintln;
-use esp_radio::wifi::{WifiController, Config, ModeConfig, ClientConfig};
+use esp_radio::wifi::{WifiController, Config, ModeConfig, ClientConfig, WifiDevice};
 use alloc::boxed::Box;
 
 extern crate alloc;
@@ -34,6 +34,7 @@ pub type BleStack<'a> = Stack<'a, ExternalController<BleConnector<'a>, 1>, Defau
 pub struct AppState {
     pub led: Output<'static>,
     pub wifi: WifiController<'static>,
+    pub wifi_interface: WifiDevice<'static>,
     pub ble_stack: BleStack<'static>,
     pub temp_sensor: TemperatureSensor<'static>,
     pub serial: UsbSerialJtag<'static, Async>,
@@ -77,7 +78,7 @@ pub async fn setup(_spawner: Spawner) -> AppState {
             .expect("Failed to initialize Wi-Fi controller");
     
     // Ensure STA mode
-    let _sta = interfaces.sta;
+    let wifi_interface = interfaces.sta;
     wifi_controller.set_config(&ModeConfig::Client(ClientConfig::default())).unwrap();
     
     // Start WiFi
@@ -99,6 +100,7 @@ pub async fn setup(_spawner: Spawner) -> AppState {
     AppState {
         led,
         wifi: wifi_controller,
+        wifi_interface,
         ble_stack,
         temp_sensor,
         serial,
