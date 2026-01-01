@@ -4,6 +4,10 @@
 use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::tsens::{TemperatureSensor, Config as TsensConfig};
+use esp_hal::usb_serial_jtag::UsbSerialJtag;
+use esp_hal::Async;
+use esp_hal::peripherals::FLASH;
 use esp_radio::ble::controller::BleConnector;
 use bt_hci::controller::ExternalController;
 use trouble_host::prelude::*;
@@ -12,6 +16,8 @@ use esp_radio::wifi::{WifiController, Config, ModeConfig, ClientConfig};
 use alloc::boxed::Box;
 
 extern crate alloc;
+
+pub mod config;
 
 // Re-exports for main.rs
 pub use esp_radio::wifi::ScanConfig;
@@ -29,6 +35,9 @@ pub struct AppState {
     pub led: Output<'static>,
     pub wifi: WifiController<'static>,
     pub ble_stack: BleStack<'static>,
+    pub temp_sensor: TemperatureSensor<'static>,
+    pub serial: UsbSerialJtag<'static, Async>,
+    pub flash: FLASH<'static>,
 }
 
 pub async fn setup(_spawner: Spawner) -> AppState {
@@ -51,7 +60,12 @@ pub async fn setup(_spawner: Spawner) -> AppState {
     // 4. Initialize LED
     let led = Output::new(peripherals.GPIO8, Level::High, OutputConfig::default());
 
-    // 5. Initialize Radio (WiFi & BLE)
+    // 5. Initialize Sensor and Serial
+    let temp_sensor = TemperatureSensor::new(peripherals.TSENS, TsensConfig::default()).expect("Failed to init TSENS");
+    
+    let serial = UsbSerialJtag::new(peripherals.USB_DEVICE).into_async();
+
+    // 6. Initialize Radio (WiFi & BLE)
     // We leak the radio_init to get a 'static reference, allowing us to return controllers
     // that reference it.
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
@@ -86,5 +100,8 @@ pub async fn setup(_spawner: Spawner) -> AppState {
         led,
         wifi: wifi_controller,
         ble_stack,
+        temp_sensor,
+        serial,
+        flash: peripherals.FLASH,
     }
 }
