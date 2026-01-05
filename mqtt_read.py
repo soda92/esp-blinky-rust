@@ -1,6 +1,5 @@
 import sys
 import argparse
-import time
 
 try:
     import paho.mqtt.client as mqtt
