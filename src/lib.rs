@@ -18,6 +18,7 @@ use alloc::boxed::Box;
 extern crate alloc;
 
 pub mod config;
+pub mod mqtt;
 
 // Re-exports for main.rs
 pub use esp_radio::wifi::ScanConfig;
